@@ -60,7 +60,7 @@ class FPM::Package::CPAN < FPM::Package
       require "yaml"
       metadata = YAML.load_file(File.join(moduledir, ("MYMETA.yml")))
     else
-      raise FPM::InvalidPackageConfiguration, 
+      raise FPM::InvalidPackageConfiguration,
         "Could not find package metadata. Checked for META.json and META.yml"
     end
     self.version = metadata["version"]
@@ -107,7 +107,7 @@ class FPM::Package::CPAN < FPM::Package
 
     safesystem(attributes[:cpan_cpanm_bin], *cpanm_flags)
 
-    if !attributes[:no_auto_depends?] 
+    if !attributes[:no_auto_depends?]
       unless metadata["requires"].nil?
         metadata["requires"].each do |dep_name, version|
           # Special case for representing perl core as a version.
@@ -116,7 +116,7 @@ class FPM::Package::CPAN < FPM::Package
             next
           end
           dep = search(dep_name)
-          
+
           if dep.include?("distribution")
             name = fix_name(dep["distribution"])
           else
@@ -154,21 +154,16 @@ class FPM::Package::CPAN < FPM::Package
       prefix = attributes[:prefix] || "/usr/local"
       # TODO(sissel): Set default INSTALL path?
 
-      # Try Makefile.PL, Build.PL
-      #
+      # Set up the local::lib environment
+      export_local_lib_env(build_path("cpan"))
+
       if File.exists?("Build.PL")
         # Module::Build is in use here; different actions required.
-        safesystem(attributes[:cpan_perl_bin],
-                   "-Mlocal::lib=#{build_path("cpan")}",
-                   "Build.PL")
-        safesystem(attributes[:cpan_perl_bin],
-                   "-Mlocal::lib=#{build_path("cpan")}",
-                   "./Build")
+        safesystem(attributes[:cpan_perl_bin], "Build.PL")
+        safesystem(attributes[:cpan_perl_bin], "./Build")
 
         if attributes[:cpan_test?]
-          safesystem(attributes[:cpan_perl_bin],
-                   "-Mlocal::lib=#{build_path("cpan")}",
-                   "./Build", "test")
+          safesystem(attributes[:cpan_perl_bin], "./Build", "test")
         end
         if attributes[:cpan_perl_lib_path]
           perl_lib_path = attributes[:cpan_perl_lib_path]
@@ -184,13 +179,11 @@ class FPM::Package::CPAN < FPM::Package
         if attributes[:cpan_perl_lib_path]
           perl_lib_path = attributes[:cpan_perl_lib_path]
           safesystem(attributes[:cpan_perl_bin],
-                     "-Mlocal::lib=#{build_path("cpan")}",
                      "Makefile.PL", "PREFIX=#{prefix}", "LIB=#{perl_lib_path}",
                      # Empty install_base to avoid local::lib being used.
                      "INSTALL_BASE=")
         else
           safesystem(attributes[:cpan_perl_bin],
-                     "-Mlocal::lib=#{build_path("cpan")}",
                      "Makefile.PL", "PREFIX=#{prefix}",
                      # Empty install_base to avoid local::lib being used.
                      "INSTALL_BASE=")
@@ -206,7 +199,7 @@ class FPM::Package::CPAN < FPM::Package
 
 
       else
-        raise FPM::InvalidPackageConfiguration, 
+        raise FPM::InvalidPackageConfiguration,
           "I don't know how to build #{name}. No Makefile.PL nor " \
           "Build.PL found"
       end
@@ -231,11 +224,33 @@ class FPM::Package::CPAN < FPM::Package
     # Find any shared objects in the staging directory to set architecture as
     # native if found; otherwise keep the 'all' default.
     Find.find(staging_path) do |path|
-      if path =~ /\.so$/  
+      if path =~ /\.so$/
         logger.info("Found shared library, setting architecture=native",
                      :path => path)
-        self.architecture = "native" 
+        self.architecture = "native"
       end
+    end
+  end
+
+  def export_local_lib_env(local_lib_path)
+    # Iterate over the output of local::lib
+    `#{attributes[:cpan_perl_bin]} -Mlocal::lib=#{local_lib_path}`.lines.each do |line|
+      # local::lib's output is in the form:
+      # ENV_VAR="some value"; export $ENV_VAR;
+      #
+      # This regular expression strips everything from the semicolon in front
+      # of 'export' to the end of the line, then splits on the equals sign,
+      # limiting the returned array to two elements.
+      (k, v) = line.chomp.gsub(/;\s+export.*$/, '').split("=", 2)
+
+      # Skip these, since they wreak havoc with the 'INSTALL_BASE=' trick.
+      next if k == "PERL_MM_OPT" or k == "PERL_MB_OPT"
+
+      # Set the current environment in accordance with local::lib's output.
+      # The subshell call to echo is necessary because some environment
+      # variables are defined in terms of other such variables; this technique
+      # expands the variables-with-variables.
+      ENV[k] = `echo #{v}`
     end
   end
 
@@ -280,7 +295,7 @@ class FPM::Package::CPAN < FPM::Package
     release_metadata = JSON.parse(data)
     archive = release_metadata["archive"]
 
-    # should probably be basepathed from the url 
+    # should probably be basepathed from the url
     tarball = File.basename(archive)
 
     url_base = "http://www.cpan.org/"
@@ -289,7 +304,7 @@ class FPM::Package::CPAN < FPM::Package
     #url = "http://www.cpan.org/CPAN/authors/id/#{author[0,1]}/#{author[0,2]}/#{author}/#{tarball}"
     url = "#{url_base}/authors/id/#{author[0,1]}/#{author[0,2]}/#{author}/#{archive}"
     logger.debug("Fetching perl module", :url => url)
-    
+
     begin
       response = httpfetch(url)
     rescue Net::HTTPServerException => e
@@ -336,7 +351,7 @@ class FPM::Package::CPAN < FPM::Package
   def httpfetch(url)
     uri = URI.parse(url)
     if ENV['http_proxy']
-      proxy = URI.parse(ENV['http_proxy'])  
+      proxy = URI.parse(ENV['http_proxy'])
       http = Net::HTTP.Proxy(proxy.host,proxy.port,proxy.user,proxy.password).new(uri.host, uri.port)
     else
       http = Net::HTTP.new(uri.host, uri.port)
