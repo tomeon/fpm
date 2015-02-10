@@ -233,11 +233,10 @@ class FPM::Package::CPAN < FPM::Package
   end
 
   def export_local_lib_env(local_lib_path)
-    # Iterate over the output of local::lib
+    # Iterate over the output of local::lib line by line
     `#{attributes[:cpan_perl_bin]} -Mlocal::lib=#{local_lib_path}`.lines.each do |line|
       # local::lib's output is in the form:
-      # ENV_VAR="some value"; export $ENV_VAR;
-      #
+      # 'ENV_VAR="some value"; export $ENV_VAR;'
       # This regular expression strips everything from the semicolon in front
       # of 'export' to the end of the line, then splits on the equals sign,
       # limiting the returned array to two elements.
@@ -249,7 +248,7 @@ class FPM::Package::CPAN < FPM::Package
       # Set the current environment in accordance with local::lib's output.
       # The subshell call to echo is necessary because some environment
       # variables are defined in terms of other such variables; this technique
-      # expands the variables-with-variables.
+      # expands the variables-within-variables.
       ENV[k] = `echo #{v}`
     end
   end
