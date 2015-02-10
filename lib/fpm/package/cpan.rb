@@ -171,22 +171,16 @@ class FPM::Package::CPAN < FPM::Package
                      --destdir #{staging_path} --prefix #{prefix} --destdir #{staging_path}")
         else
            safesystem("./Build", "install",
-                     "--prefix", prefix, "--destdir", staging_path,
-                     # Empty install_base to avoid local::lib being used.
-                     "--install_base", "")
+                     "--prefix", prefix, "--destdir", staging_path)
         end
       elsif File.exists?("Makefile.PL")
         if attributes[:cpan_perl_lib_path]
           perl_lib_path = attributes[:cpan_perl_lib_path]
           safesystem(attributes[:cpan_perl_bin],
-                     "Makefile.PL", "PREFIX=#{prefix}", "LIB=#{perl_lib_path}",
-                     # Empty install_base to avoid local::lib being used.
-                     "INSTALL_BASE=")
+                     "Makefile.PL", "PREFIX=#{prefix}", "LIB=#{perl_lib_path}")
         else
           safesystem(attributes[:cpan_perl_bin],
-                     "Makefile.PL", "PREFIX=#{prefix}",
-                     # Empty install_base to avoid local::lib being used.
-                     "INSTALL_BASE=")
+                     "Makefile.PL", "PREFIX=#{prefix}")
         end
         if attributes[:cpan_test?]
           make = [ "env", "PERL5LIB=#{build_path("cpan/lib/perl5")}", "make" ]
@@ -242,7 +236,7 @@ class FPM::Package::CPAN < FPM::Package
       # limiting the returned array to two elements.
       (k, v) = line.chomp.gsub(/;\s+export.*$/, '').split("=", 2)
 
-      # Skip these, since they wreak havoc with the 'INSTALL_BASE=' trick.
+      # Skip these, since they wreak havoc when PREFIX # is set.
       next if k == "PERL_MM_OPT" or k == "PERL_MB_OPT"
 
       # Set the current environment in accordance with local::lib's output.
