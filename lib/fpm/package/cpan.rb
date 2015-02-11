@@ -157,6 +157,13 @@ class FPM::Package::CPAN < FPM::Package
       # Set up the local::lib environment
       export_local_lib_env(build_path("cpan"))
 
+      # Some modules will prompt for input during the build process, hanging
+      # fpm.  These options will override most such occurrences.
+      ENV["PERL_MM_USE_DEFAULT"] = "1"
+      ENV["AUTOMATED_TESTING"] = "1"
+
+      # Try Makefile.PL, Build.PL
+      #
       if File.exists?("Build.PL")
         # Module::Build is in use here; different actions required.
         safesystem(attributes[:cpan_perl_bin], "Build.PL")
