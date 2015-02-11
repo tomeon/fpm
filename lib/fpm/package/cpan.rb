@@ -101,7 +101,7 @@ class FPM::Package::CPAN < FPM::Package
     logger.info("Installing any build or configure dependencies")
 
     cpanm_flags = ["-L", build_path("cpan"), moduledir]
-    cpanm_flags += ["-n"] if attributes[:cpan_test?]
+    cpanm_flags += ["-n"] if !attributes[:cpan_test?]
     cpanm_flags += ["--mirror", "#{attributes[:cpan_mirror]}"] if !attributes[:cpan_mirror].nil?
     cpanm_flags += ["--mirror-only"] if attributes[:cpan_mirror_only?] && !attributes[:cpan_mirror].nil?
 
