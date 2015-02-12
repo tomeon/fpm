@@ -263,7 +263,7 @@ class FPM::Package::CPAN < FPM::Package
       # The subshell call to echo is necessary because some environment
       # variables are defined in terms of other such variables; this technique
       # expands the variables-within-variables.
-      ENV[k] = `echo #{v}`
+      ENV[k] = `echo #{v}`.chomp
     end
   end
 
