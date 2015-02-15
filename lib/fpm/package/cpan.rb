@@ -27,6 +27,9 @@ class FPM::Package::CPAN < FPM::Package
   option "--perl-lib-path", "PERL_LIB_PATH",
     "Path of target Perl Libraries"
 
+  option "--contained", :flag,
+    "Install prerequisites in a temporary environment; otherwise install them in @INC", :default => true
+
   private
   def input(package)
     #if RUBY_VERSION =~ /^1\.8/
@@ -109,11 +112,16 @@ class FPM::Package::CPAN < FPM::Package
     # We'll install to a temporary directory.
     logger.info("Installing any build or configure dependencies")
 
-    cpanm_flags = ["-L", build_path("cpan"), moduledir]
-    # This flag causes cpanm to ONLY download dependencies, skipping the target
-    # module itself.  This is fine, because the target module has already been
-    # downloaded, and there's no need to download twice, test twice, etc.
-    cpanm_flags = ["--installdeps"]
+    if attributes[:cpan_contained]
+      cpanm_flags = ["-L", build_path("cpan"), moduledir]
+      # This flag causes cpanm to ONLY download dependencies, skipping the target
+      # module itself.  This is fine, because the target module has already been
+      # downloaded, and there's no need to download twice, test twice, etc.
+    else
+      cpanm_flags = [moduledir]
+    end
+
+    cpanm_flags += ["--installdeps"]
     cpanm_flags += ["-n"] if !attributes[:cpan_test?]
     cpanm_flags += ["--mirror", "#{attributes[:cpan_mirror]}"] if !attributes[:cpan_mirror].nil?
     cpanm_flags += ["--mirror-only"] if attributes[:cpan_mirror_only?] && !attributes[:cpan_mirror].nil?
