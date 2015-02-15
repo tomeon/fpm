@@ -28,7 +28,10 @@ class FPM::Package::CPAN < FPM::Package
     "Path of target Perl Libraries"
 
   option "--contained", :flag,
-    "Install prerequisites in a temporary environment; otherwise install them in @INC", :default => true
+    "Install prerequisites in a temporary environment; otherwise install them in the specified perl's 'installsitelib'", :default => true
+
+  option "--sudo", :flag,
+    "Use sudo to install dependencies.  Potentially useful with '--no-cpan-contained'", :default => false
 
   private
   def input(package)
@@ -42,6 +45,16 @@ class FPM::Package::CPAN < FPM::Package
     #require "ftw" # for http access
     require "net/http"
     require "json"
+
+    # Test whether we can write to :cpan_perl_bin's library/bin paths.
+    if !(attributes[:cpan_contained?] or attributes[:cpan_sudo?])
+      cpan_installsitelib = `#{attributes[:cpan_perl_bin]} -MConfig -e 'print $Config{installsitelib}'`.chomp
+      cpan_installsitebin = `#{attributes[:cpan_perl_bin]} -MConfig -e 'print $Config{installsitebin}'`.chomp
+      if not File.writable?(cpan_installsitelib) or not File.writable?(cpan_installsitebin)
+        raise FPM::Util::PermissionError, "Can't write to #{cpan_installsitelib} and/or " \
+          "#{cpan_installsitebin}.  Either use '--cpan-contained' or '--cpan-sudo'"
+      end
+    end
 
     if (attributes[:cpan_local_module?])
       moduledir = package
@@ -112,16 +125,17 @@ class FPM::Package::CPAN < FPM::Package
     # We'll install to a temporary directory.
     logger.info("Installing any build or configure dependencies")
 
-    if attributes[:cpan_contained]
-      cpanm_flags = ["-L", build_path("cpan"), moduledir]
-      # This flag causes cpanm to ONLY download dependencies, skipping the target
-      # module itself.  This is fine, because the target module has already been
-      # downloaded, and there's no need to download twice, test twice, etc.
-    else
-      cpanm_flags = [moduledir]
+    cpanm_flags = [moduledir]
+    if attributes[:cpan_contained?]
+      cpanm_flags += ["-L", build_path("cpan")]
     end
 
+    # This flag causes cpanm to ONLY download dependencies, skipping the target
+    # module itself.  This is fine, because the target module has already been
+    # downloaded, and there's no need to download twice, test twice, etc.
     cpanm_flags += ["--installdeps"]
+
+    cpanm_flags += ["--sudo"] if attributes[:cpan_sudo?]
     cpanm_flags += ["-n"] if !attributes[:cpan_test?]
     cpanm_flags += ["--mirror", "#{attributes[:cpan_mirror]}"] if !attributes[:cpan_mirror].nil?
     cpanm_flags += ["--mirror-only"] if attributes[:cpan_mirror_only?] && !attributes[:cpan_mirror].nil?
