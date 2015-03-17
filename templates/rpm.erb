@@ -21,7 +21,7 @@
 %define _binary_filedigest_algorithm <%= digest_algorithm %>
 
 # Use <%= attributes[:rpm_compression] %> payload compression
-%define _binary_payload <%= payload_compression %> 
+%define _binary_payload <%= payload_compression %>
 
 <% (attributes[:rpm_filter_from_requires] or []).each do |reqfilter| -%>
 %filter_from_requires <%= reqfilter %>
@@ -61,13 +61,13 @@ Prefix: <%= prefix.gsub(/([^\/]+)(\/$)/, '') %>
 <% end -%>
 
 Group: <%= category %>
-<%# Sometimes the 'license' field has multiple lines... Hack around it. 
+<%# Sometimes the 'license' field has multiple lines... Hack around it.
   # While technically yes this means we are 'modifying' the license,
   # since the job of FPM is to get shit done and that this is  only
   # modifying whitespace, it should be reasonably OK. -%>
 License: <%= license.gsub("\n", " ") %>
 <% if !vendor.nil? and !vendor.empty? -%>
-Vendor: <%= vendor %>
+Vendor: <%= vendor.gsub("\n", " ") %>
 <% end -%>
 <% if !url.nil? and !url.empty? -%>
 URL: <%= url %>
@@ -197,7 +197,7 @@ fi
     :after_install => "in",
     :before_uninstall => "un",
     :after_target_uninstall => "postun"
-  } 
+  }
   triggermap.each do |name, rpmtype|
     (attributes["rpm_trigger_#{name}".to_sym] or []).each do |trigger_name, trigger_script, trigger_scriptprog| -%>
 %trigger<%= rpmtype -%> <%= trigger_scriptprog -%> -- <%= trigger_name %>
