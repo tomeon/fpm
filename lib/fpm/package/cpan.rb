@@ -140,10 +140,9 @@ class FPM::Package::CPAN < FPM::Package
     cpanm_flags += ["--mirror", "#{attributes[:cpan_mirror]}"] if !attributes[:cpan_mirror].nil?
     cpanm_flags += ["--mirror-only"] if attributes[:cpan_mirror_only?] && !attributes[:cpan_mirror].nil?
 
-logger.info("EXECUTING:")
-logger.info("#{attributes[:cpan_cpanm_bin]} #{cpanm_flags.join(' ')}")
-
     safesystem(attributes[:cpan_cpanm_bin], *cpanm_flags)
+
+logger.info("--no-auto-depends: #{attributes[:no_auto_depends]}")
 
     if !attributes[:no_auto_depends?]
       unless metadata["requires"].nil?
