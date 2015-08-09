@@ -7,7 +7,7 @@ require "fileutils"
 require "tmpdir"
 require "json"
 
-# Support for python packages. 
+# Support for python packages.
 #
 # This supports input, but not output.
 #
@@ -28,7 +28,7 @@ class FPM::Package::Python < FPM::Package
     "is used instead", :default => nil
   option "--pypi", "PYPI_URL",
     "PyPi Server uri for retrieving packages.",
-    :default => "http://pypi.python.org/simple"
+    :default => "https://pypi.python.org/simple"
   option "--package-prefix", "NAMEPREFIX",
     "(DEPRECATED, use --package-name-prefix) Name to prefix the package " \
     "name with." do |value|
@@ -69,6 +69,10 @@ class FPM::Package::Python < FPM::Package
     "current python interpreter (sys.executable). This option is equivalent " \
     "to appending 'build_scripts --executable PYTHON_EXECUTABLE' arguments " \
     "to 'setup.py install' command."
+  option "--disable-dependency", "python_package_name",
+    "The python package name to remove from dependency list",
+    :multivalued => true, :attribute_name => :python_disable_dependency,
+    :default => []
 
   private
 
@@ -88,7 +92,7 @@ class FPM::Package::Python < FPM::Package
       setup_py = path_to_package
     end
 
-    if !File.exists?(setup_py)
+    if !File.exist?(setup_py)
       logger.error("Could not find 'setup.py'", :path => setup_py)
       raise "Unable to find python package; tried #{setup_py}"
     end
@@ -104,7 +108,7 @@ class FPM::Package::Python < FPM::Package
     # part should go elsewhere.
     path = package
     # If it's a path, assume local build.
-    if File.directory?(path) or (File.exists?(path) and File.basename(path) == "setup.py")
+    if File.directory?(path) or (File.exist?(path) and File.basename(path) == "setup.py")
       return path
     end
 
@@ -127,7 +131,7 @@ class FPM::Package::Python < FPM::Package
                  "--build-directory", target, want_pkg)
     else
       logger.debug("using pip", :pip => attributes[:python_pip])
-      safesystem(attributes[:python_pip], "install", "--no-deps", "--no-install", "-i", attributes[:python_pypi], "-U", "--build", target, want_pkg)
+      safesystem(attributes[:python_pip], "install", "--no-deps", "--no-install", "--no-use-wheel", "-i", attributes[:python_pypi], "-U", "--build", target, want_pkg)
     end
 
     # easy_install will put stuff in @tmpdir/packagename/, so find that:
@@ -145,7 +149,7 @@ class FPM::Package::Python < FPM::Package
       attributes[:python_package_name_prefix] = attributes[:python_package_prefix]
     end
 
-    begin 
+    begin
       json_test_code = [
         "try:",
         "  import json",
@@ -219,7 +223,7 @@ class FPM::Package::Python < FPM::Package
     self.name = self.name.downcase if attributes[:python_downcase_name?]
 
     if !attributes[:no_auto_depends?] and attributes[:python_dependencies?]
-      self.dependencies = metadata["dependencies"].collect do |dep|
+      metadata["dependencies"].each do |dep|
         dep_re = /^([^<>!= ]+)\s*(?:([<>!=]{1,2})\s*(.*))?$/
         match = dep_re.match(dep)
         if match.nil?
@@ -227,6 +231,8 @@ class FPM::Package::Python < FPM::Package
           raise FPM::InvalidPackageConfiguration, "Invalid dependency '#{dep}'"
         end
         name, cmp, version = match.captures
+
+        next if attributes[:python_disable_dependency].include?(name)
 
         # convert == to =
         if cmp == "=="
@@ -241,7 +247,8 @@ class FPM::Package::Python < FPM::Package
 
         # convert dependencies from python-Foo to python-foo
         name = name.downcase if attributes[:python_downcase_dependencies?]
-        "#{name} #{cmp} #{version}"
+
+        self.dependencies << "#{name} #{cmp} #{version}"
       end
     end # if attributes[:python_dependencies?]
   end # def load_package_info
@@ -267,7 +274,7 @@ class FPM::Package::Python < FPM::Package
 
     prefix = "/"
     prefix = attributes[:prefix] unless attributes[:prefix].nil?
-    
+
     # Some setup.py's assume $PWD == current directory of setup.py, so let's
     # chdir first.
     ::Dir.chdir(project_dir) do

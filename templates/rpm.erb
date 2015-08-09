@@ -17,8 +17,11 @@
 # Disable checking for unpackaged files ?
 #%undefine __check_files
 
-# Use <%= attributes[:rpm_digest] %> file digest method
+# Use <%= attributes[:rpm_digest] %> file digest method. 
+# The first macro is the one used in RPM v4.9.1.1
 %define _binary_filedigest_algorithm <%= digest_algorithm %>
+# This is the macro I find on OSX when Homebrew provides rpmbuild (rpm v5.4.14)
+%define _build_binary_file_digest_algo <%= digest_algorithm %>
 
 # Use <%= attributes[:rpm_compression] %> payload compression
 %define _binary_payload <%= payload_compression %> 
@@ -38,9 +41,9 @@ Version: <%= version %>
 <% if epoch -%>
 Epoch: <%= epoch %>
 <% end -%>
-Release: <%= iteration or 1 %>
+Release: <%= iteration or 1 %><%= "%{?dist}" if attributes[:rpm_dist] %>
 <%# use the first line of the description as the summary -%>
-Summary: <%= description.split("\n").first.empty? ? "_" :  description.split("\n").first %>
+Summary: <%= description.split("\n").first || "_" %>
 <% if !attributes[:rpm_autoreqprov?] -%>
 AutoReqProv: no
 <% else -%>
@@ -120,42 +123,60 @@ Obsoletes: <%= repl %>
 <%   if script?(:before_upgrade) or script?(:before_install) -%>
 %pre
 upgrade() {
+<%# Making sure that at least one command is in the function -%>
+<%# avoids a lot of potential errors, including the case that -%>
+<%# the script is non-empty, but just whitespace and/or comments -%>
+    :
 <%     if script?(:before_upgrade) -%>
 <%=      script(:before_upgrade) %>
 <%     end -%>
 }
 install() {
+<%# Making sure that at least one command is in the function -%>
+<%# avoids a lot of potential errors, including the case that -%>
+<%# the script is non-empty, but just whitespace and/or comments -%>
+    :
 <%     if script?(:before_install) -%>
 <%=      script(:before_install) %>
 <%     end -%>
 }
 if [ "${1}" -eq 1 ]
 then
-    install
     # "before install" goes here
+    install
 elif [ "${1}" -gt 1 ]
 then
+    # "before upgrade" goes here
     upgrade
 fi
 <%   end -%>
 <%   if script?(:after_upgrade) or script?(:after_install) -%>
-%pre
+%post
 upgrade() {
+<%# Making sure that at least one command is in the function -%>
+<%# avoids a lot of potential errors, including the case that -%>
+<%# the script is non-empty, but just whitespace and/or comments -%>
+    :
 <%     if script?(:after_upgrade) -%>
 <%=      script(:after_upgrade) %>
 <%     end -%>
 }
 install() {
+<%# Making sure that at least one command is in the function -%>
+<%# avoids a lot of potential errors, including the case that -%>
+<%# the script is non-empty, but just whitespace and/or comments -%>
+    :
 <%     if script?(:after_install) -%>
 <%=      script(:after_install) %>
 <%     end -%>
 }
 if [ "${1}" -eq 1 ]
 then
+    # "after install" goes here
     install
-    # "before install" goes here
 elif [ "${1}" -gt 1 ]
 then
+    # "after upgrade" goes here
     upgrade
 fi
 <%   end -%>
@@ -163,6 +184,10 @@ fi
 %preun
 if [ "${1}" -eq 0 ]
 then
+<%# Making sure that at least one command is in the function -%>
+<%# avoids a lot of potential errors, including the case that -%>
+<%# the script is non-empty, but just whitespace and/or comments -%>
+    :
 <%=    script(:before_remove) %>
 fi
 <%   end -%>
@@ -170,6 +195,10 @@ fi
 %postun
 if [ "${1}" -eq 0 ]
 then
+<%# Making sure that at least one command is in the function -%>
+<%# avoids a lot of potential errors, including the case that -%>
+<%# the script is non-empty, but just whitespace and/or comments -%>
+    :
 <%=    script(:after_remove) %>
 fi
 <%   end -%>
