@@ -52,16 +52,16 @@ class FPM::Package::CPAN < FPM::Package
     end
 
     # Read package metadata (name, version, etc)
-    if File.exist?(File.join(moduledir, "META.json"))
-      local_metadata = JSON.parse(File.read(File.join(moduledir, ("META.json"))))
+    local_metadata = if File.exist?(File.join(moduledir, "META.json"))
+      JSON.parse(File.read(File.join(moduledir, ("META.json"))))
     elsif File.exist?(File.join(moduledir, ("META.yml")))
       require "yaml"
-      local_metadata = YAML.load_file(File.join(moduledir, ("META.yml")))
+      YAML.load_file(File.join(moduledir, ("META.yml")))
     elsif File.exist?(File.join(moduledir, "MYMETA.json"))
-      local_metadata = JSON.parse(File.read(File.join(moduledir, ("MYMETA.json"))))
+      JSON.parse(File.read(File.join(moduledir, ("MYMETA.json"))))
     elsif File.exist?(File.join(moduledir, ("MYMETA.yml")))
       require "yaml"
-      local_metadata = YAML.load_file(File.join(moduledir, ("MYMETA.yml")))
+      YAML.load_file(File.join(moduledir, ("MYMETA.yml")))
     end
 
     # Merge the MetaCPAN query result and the metadata pulled from the local
