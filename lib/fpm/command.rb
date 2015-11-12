@@ -122,7 +122,9 @@ class FPM::Command < Clamp::Command
     "directory all files inside it will be recursively marked as config files.",
     :multivalued => true, :attribute_name => :config_files
   option "--directories", "DIRECTORIES", "Recursively mark a directory as being owned " \
-    "by the package", :multivalued => true, :attribute_name => :directories
+    "by the package. Use this flag multiple times if you have multiple directories " \
+    "and they are not under the same parent directory ", :multivalued => true,
+    :attribute_name => :directories
   option ["-a", "--architecture"], "ARCHITECTURE",
     "The architecture name. Usually matches 'uname -m'. For automatic values," \
     " you can use '-a all' or '-a native'. These two strings will be " \
@@ -149,10 +151,8 @@ class FPM::Command < Clamp::Command
     "patterns to exclude from input."
 
   option "--description", "DESCRIPTION", "Add a description for this package." \
-    " You can include '\n' sequences to indicate newline breaks.",
+    " You can include '\\n' sequences to indicate newline breaks.",
     :default => "no description" do |val|
-    # Replace literal "\n" sequences with a newline character.
-    val.gsub("\\n", "\n")
   end
   option "--url", "URI", "Add a url for this package.",
     :default => "http://example.com/no-uri-given"
@@ -202,7 +202,7 @@ class FPM::Command < Clamp::Command
         "--before-install, --after-install, --before-remove, and \n" \
         "--after-remove will behave in a backwards-compatible manner\n" \
         "(they will not be upgrade-case aware).\n" \
-        "Currently only supports deb and rpm packages." do |val|
+        "Currently only supports deb, rpm and pacman packages." do |val|
     File.expand_path(val) # Get the full path to the script
   end # --after-upgrade
   option "--before-upgrade", "FILE",
@@ -210,7 +210,7 @@ class FPM::Command < Clamp::Command
         "--before-install, --after-install, --before-remove, and \n" \
         "--after-remove will behave in a backwards-compatible manner\n" \
         "(they will not be upgrade-case aware).\n" \
-        "Currently only supports deb and rpm packages." do |val|
+        "Currently only supports deb, rpm and pacman packages." do |val|
     File.expand_path(val) # Get the full path to the script
   end # --before-upgrade
 
@@ -363,11 +363,13 @@ class FPM::Command < Clamp::Command
         return 1
       end
 
+      # Ensure hash is initialized
+      input.attributes[:excludes] ||= []
+
       # Read each line as a path
-      File.new(exclude-file, "r").each_line do |line| 
+      File.new(exclude_file, "r").each_line do |line|
         # Handle each line as if it were an argument
-        # 'excludes' is defined above near the -x option.
-        excludes << line.strip
+        input.attributes[:excludes] << line.strip
       end
     end
 
@@ -396,7 +398,6 @@ class FPM::Command < Clamp::Command
     set.call(input, :url)
     set.call(input, :vendor)
     set.call(input, :version)
-    set.call(input, :architecture)
 
     input.conflicts += conflicts
     input.dependencies += dependencies
@@ -413,7 +414,6 @@ class FPM::Command < Clamp::Command
     end
 
     input.attrs = h
-
 
     script_errors = []
     setscript = proc do |scriptname|
@@ -509,7 +509,7 @@ class FPM::Command < Clamp::Command
     end
   end # def execute
 
-  def run(*args)
+  def run(*run_args)
     logger.subscribe(STDOUT)
 
     # fpm initialization files, note the order of the following array is
@@ -518,21 +518,41 @@ class FPM::Command < Clamp::Command
     rc_files = [ ".fpm" ]
     rc_files << File.join(ENV["HOME"], ".fpm") if ENV["HOME"]
 
+    rc_args = []
+
+    if ENV["FPMOPTS"]
+      logger.warn("Loading flags from FPMOPTS environment variable")
+      rc_args.push(*Shellwords.shellsplit(ENV["FPMOPTS"]))
+    end
+
     rc_files.each do |rc_file|
       if File.readable? rc_file
         logger.warn("Loading flags from rc file #{rc_file}")
-        File.readlines(rc_file).each do |line|
-          # reverse because 'unshift' pushes onto the left side of the array.
-          Shellwords.shellsplit(line).reverse.each do |arg|
-            # Put '.fpm'-file flags *before* the command line flags
-            # so that we the CLI can override the .fpm flags
-            ARGV.unshift(arg)
-          end
-        end
+        rc_args.push(*Shellwords.shellsplit(File.read(rc_file)))
       end
     end
 
-    super(*args)
+    flags = []
+    args = []
+    while rc_args.size > 0 do
+      arg = rc_args.shift
+      opt = self.class.find_option(arg)
+      if opt and not opt.flag?
+        flags.push(arg)
+        flags.push(rc_args.shift)
+      elsif opt or arg[0] == "-"
+        flags.push(arg)
+      else
+        args.push(arg)
+      end
+    end
+
+    logger.warn("Additional options: #{flags.join " "}") if flags.size > 0
+    logger.warn("Additional arguments: #{args.join " "}") if args.size > 0
+
+    ARGV.unshift(*flags)
+    ARGV.push(*args)
+    super(*run_args)
   rescue FPM::Package::InvalidArgument => e
     logger.error("Invalid package argument: #{e}")
     return 1

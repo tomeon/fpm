@@ -30,6 +30,9 @@ class FPM::Package::CPAN < FPM::Package
   option "--sandbox-non-core", :flag,
     "Sandbox all non-core modules, even if they're already installed", :default => true
 
+  option "--cpanm-force", :flag,
+    "Pass the --force parameter to cpanm", :default => false
+
   private
   def input(package)
     #if RUBY_VERSION =~ /^1\.8/
@@ -43,7 +46,7 @@ class FPM::Package::CPAN < FPM::Package
     require "net/http"
     require "json"
 
-    if (attributes[:cpan_local_module?])
+    if File.exist?(package)
       moduledir = package
     else
       result = search(package)
@@ -53,19 +56,28 @@ class FPM::Package::CPAN < FPM::Package
 
     # Read package metadata (name, version, etc)
     if File.exist?(File.join(moduledir, "META.json"))
-      metadata = JSON.parse(File.read(File.join(moduledir, ("META.json"))))
+      local_metadata = JSON.parse(File.read(File.join(moduledir, ("META.json"))))
     elsif File.exist?(File.join(moduledir, ("META.yml")))
       require "yaml"
-      metadata = YAML.load_file(File.join(moduledir, ("META.yml")))
+      local_metadata = YAML.load_file(File.join(moduledir, ("META.yml")))
     elsif File.exist?(File.join(moduledir, "MYMETA.json"))
-      metadata = JSON.parse(File.read(File.join(moduledir, ("MYMETA.json"))))
+      local_metadata = JSON.parse(File.read(File.join(moduledir, ("MYMETA.json"))))
     elsif File.exist?(File.join(moduledir, ("MYMETA.yml")))
       require "yaml"
-      metadata = YAML.load_file(File.join(moduledir, ("MYMETA.yml")))
-    else
-      raise FPM::InvalidPackageConfiguration,
-        "Could not find package metadata. Checked for META.json and META.yml"
+      local_metadata = YAML.load_file(File.join(moduledir, ("MYMETA.yml")))
     end
+
+    # Merge the MetaCPAN query result and the metadata pulled from the local
+    # META file(s).  The local data overwrites the query data for all keys the
+    # two hashes have in common.  Merge with an empty hash if there was no
+    # local META file.
+    metadata = result.merge(local_metadata || {})
+
+    if metadata.empty?
+      raise FPM::InvalidPackageConfiguration,
+        "Could not find package metadata. Checked for META.json, META.yml, and MetaCPAN API data"
+    end
+
     self.version = metadata["version"]
     self.description = metadata["abstract"]
 
@@ -116,6 +128,7 @@ class FPM::Package::CPAN < FPM::Package
     cpanm_flags += ["-n"] if !attributes[:cpan_test?]
     cpanm_flags += ["--mirror", "#{attributes[:cpan_mirror]}"] if !attributes[:cpan_mirror].nil?
     cpanm_flags += ["--mirror-only"] if attributes[:cpan_mirror_only?] && !attributes[:cpan_mirror].nil?
+    cpanm_flags += ["--force"] if attributes[:cpan_cpanm_force?]
 
     safesystem(attributes[:cpan_cpanm_bin], *cpanm_flags)
 

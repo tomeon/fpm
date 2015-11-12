@@ -122,6 +122,14 @@ class FPM::Package::RPM < FPM::Package
     next rpmbuild_filter_from_requires
   end
 
+  rpm_tags = []
+  option "--tag", "TAG",
+    "Adds a custom tag in the spec file as is. " \
+    "Example: --rpm-tag 'Requires(post): /usr/sbin/alternatives'" do |add_tag|
+      rpm_tags << add_tag
+    next rpm_tags
+  end
+
   option "--ignore-iteration-in-dependencies", :flag,
             "For '=' (equal) dependencies, allow iterations on the specified " \
             "version. Default is to be specific. This option allows the same " \
@@ -168,11 +176,15 @@ class FPM::Package::RPM < FPM::Package
   # Replace ? with [?] to make rpm not use globs
   # Replace % with [%] to make rpm not expand macros
   def rpm_fix_name(name)
-    name = "\"#{name}\"" if name[/\s/]
-    name = name.gsub("[", "[\\[]")
-    name = name.gsub("*", "[*]")
-    name = name.gsub("?", "[?]")
-    name = name.gsub("%", "[%]")
+    name = name.gsub(/(\ |\[|\]|\*|\?|\%|\$)/, {
+      ' ' => '?',
+      '%' => '[%]',
+      '$' => '[$]',
+      '?' => '[?]',
+      '*' => '[*]',
+      '[' => '[\[]',
+      ']' => '[\]]'
+    })
   end
 
   def rpm_file_entry(file)
@@ -309,12 +321,16 @@ class FPM::Package::RPM < FPM::Package
 
   def rpm_get_trigger_type(flag)
     if (flag & (1 << 25)) == (1 << 25)
+       # RPMSENSE_TRIGGERPREIN = (1 << 25),  /*!< %triggerprein dependency. */
        :rpm_trigger_before_install
     elsif (flag & (1 << 16)) == (1 << 16)
+       # RPMSENSE_TRIGGERIN  = (1 << 16),    /*!< %triggerin dependency. */
        :rpm_trigger_after_install
     elsif (flag & (1 << 17)) == (1 << 17)
+       # RPMSENSE_TRIGGERUN  = (1 << 17),    /*!< %triggerun dependency. */
        :rpm_trigger_before_uninstall
     elsif (flag & (1 << 18)) == (1 << 18)
+       # RPMSENSE_TRIGGERPOSTUN = (1 << 18), /*!< %triggerpostun dependency. */
        :rpm_trigger_after_target_uninstall
     else
        @logger.fatal("I don't know about this triggerflag ('#{flag}')")
