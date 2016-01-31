@@ -155,7 +155,7 @@ class FPM::Package
     # Iterate over all the options and set defaults
     if self.class.respond_to?(:declared_options)
       self.class.declared_options.each do |option|
-        with(option.attribute_name) do |attr|
+        option.attribute_name.tap do |attr|
           # clamp makes option attributes available as accessor methods
           # do --foo-bar is available as 'foo_bar'
           # make these available as package attributes.
@@ -216,7 +216,7 @@ class FPM::Package
     return pkg
   end # def convert
 
-  # This method is invoked on a package when it has been covered to a new
+  # This method is invoked on a package when it has been converted to a new
   # package format. The purpose of this method is to do any extra conversion
   # steps, like translating dependency conditions, etc.
   def converted_from(origin)
@@ -351,7 +351,7 @@ class FPM::Package
     system("#{editor} #{Shellwords.escape(path)}")
     if !$?.success?
       raise ProcessFailed.new("'#{editor}' failed (exit code " \
-                              "#{$?.exitstatus}) Full command was: "\
+                              "#{$?.exitstatus}) Full command was: " \
                               "#{command}");
     end
 
@@ -379,7 +379,7 @@ class FPM::Package
 
         if File.fnmatch(wildcard, match_path)
           logger.info("Removing excluded path", :path => match_path, :matches => wildcard)
-          FileUtils.remove_entry_secure(path)
+          FileUtils.rm_r(path)
           Find.prune
           break
         end

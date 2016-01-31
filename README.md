@@ -67,7 +67,7 @@ The goal of FPM is to be able to easily build platform-native packages.
 Many Linux distros do not ship ruby C headers or a compiler by default, and
 you'll need that to install fpm.
 
-    apt-get install ruby-dev gcc
+    apt-get install ruby-dev gcc make
     
     yum install ruby-devel gcc
 
@@ -115,6 +115,7 @@ Sources:
 * rpm
 * deb
 * node packages (npm)
+* pacman (ArchLinux) packages
 
 Targets:
 
@@ -124,6 +125,7 @@ Targets:
 * tar
 * directories
 * Mac OS X `.pkg` files (`osxpkg`)
+* pacman (ArchLinux) packages
 
 ## Need Help or Want to Contribute?
 
@@ -140,11 +142,11 @@ That said, some basic guidelines, which you are free to ignore :)
   join the IRC channel #fpm on irc.freenode.org, or email me personally
   (jls@semicomplete.com)
 * Have an idea or a feature request? File a ticket on
-  [github](https://github.com/jordansissel/fpm/issues), or email the
+  [GitHub](https://github.com/jordansissel/fpm/issues), or email the
   [mailing list](http://groups.google.com/group/fpm-users), or email
   me personally (jls@semicomplete.com) if that is more comfortable.
 * If you think you found a bug, it probably is a bug. File it on
-  [github](https://github.com/jordansissel/fpm/issues) or send details to
+  [GitHub](https://github.com/jordansissel/fpm/issues) or send details to
   the [mailing list](http://groups.google.com/group/fpm-users).
 * If you want to send patches, best way is to fork this repo and send me a pull
   request. If you don't know git, I also accept diff(1) formatted patches -
@@ -159,11 +161,11 @@ Please note that this project is released with a Contributor Code of Conduct.
 By participating in this project you agree to abide by its terms. See
 the [CODE\_OF\_CONDUCT.md](CODE_OF_CONDUCT.md).
 
-First, create a github account if you do not already have one.  Log in to
-github and go to [the main fpm github page](https://github.com/jordansissel/fpm).
+First, create a GitHub account if you do not already have one.  Log in to
+GitHub and go to [the main fpm GitHub page](https://github.com/jordansissel/fpm).
 
 At the top right, click on the button labeled "Fork".  This will put a forked
-copy of the main fpm repo into your account.  Next, clone your account's github
+copy of the main fpm repo into your account.  Next, clone your account's GitHub
 repo of fpm.  For example:
 
     $ git clone git@github.com:yourusername/fpm.git
@@ -194,13 +196,13 @@ repo.  Now simply make whatever changes you want, commit the code, and push
 your commit back to master.
 
 If you think your changes are ready to be merged back to the main fpm repo, you
-can generate a pull request on the github website for your repo and send it in
+can generate a pull request on the GitHub website for your repo and send it in
 for review.
 
 ##Problems running bundle install?
 
 If you are installing on Mac OS 10.9 (Mavericks) you will need to make sure that 
-you have the standalone command line tools seperate from Xcode:
+you have the standalone command line tools separate from Xcode:
 
     $ xcode-select --install
 

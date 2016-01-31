@@ -43,7 +43,7 @@ Epoch: <%= epoch %>
 <% end -%>
 Release: <%= iteration or 1 %><%= "%{?dist}" if attributes[:rpm_dist] %>
 <%# use the first line of the description as the summary -%>
-Summary: <%= description.split("\n").first || "_" %>
+Summary: <%= summary %>
 <% if !attributes[:rpm_autoreqprov?] -%>
 AutoReqProv: no
 <% else -%>
@@ -82,6 +82,9 @@ Packager: <%= maintainer %>
 <% if !attributes[:no_depends?] -%>
 <% dependencies.each do |req| -%>
 Requires: <%= req %>
+<% end -%>
+<% (attributes[:rpm_tags] or []).each do |tag| -%>
+<%= tag %>
 <% end -%>
 <% end -%>
 <% provides.each do |prov| -%>

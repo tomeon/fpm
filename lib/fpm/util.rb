@@ -135,16 +135,13 @@ module FPM::Util
         system("#{tar} > /dev/null 2> /dev/null")
         return tar unless $?.exitstatus == 127
       end
+    when "FreeBSD"
+      # use gnutar instead
+      return "gtar"
     else
       return "tar"
     end
   end # def tar_cmd
-
-  # Run a block with a value.
-  # Useful in lieu of assigning variables
-  def with(value, &block)
-    block.call(value)
-  end # def with
 
   # wrapper around mknod ffi calls
   def mknod_w(path, mode, dev)

@@ -128,7 +128,7 @@ class FPM::Package::Dir < FPM::Package
         "to stage files during packaging, so this setting would have " \
         "caused fpm to loop creating staging directories and copying " \
         "them into your package! Oops! If you are confused, maybe you could " \
-        "check your TMPDIR or TEMPDIR environment variables?"
+        "check your TMPDIR, TMP, or TEMP environment variables?"
     end
 
     # For single file copies, permit file destinations
@@ -160,7 +160,7 @@ class FPM::Package::Dir < FPM::Package
     # lstat to follow symlinks
     dstat = File.stat(directory) rescue nil
     if dstat.nil?
-      FileUtils.mkdir_p(directory)
+      FileUtils.mkdir_p(directory, :mode => 0755)
     elsif dstat.directory?
       # do nothing, it's already a directory!
     else
